@@ -34,6 +34,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
     params_file = LaunchConfiguration('params_file')
+    bt_file = LaunchConfiguration('bt_file')
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
 
@@ -97,6 +98,12 @@ def generate_launch_description():
         'params_file',
         default_value=os.path.join(toio_navigation_dir, 'params', 'nav2_params.yaml'),
         description='Full path to the ROS2 parameters file to use for all launched nodes',
+    )
+
+    declare_bt_file_cmd = DeclareLaunchArgument(
+        'bt_file',
+        default_value=os.path.join(toio_navigation_dir, 'behavior_trees', 'navigate_to_pose_w_replanning_and_recovery.xml'),
+        description='Full path to the BT XML file',
     )
 
     declare_autostart_cmd = DeclareLaunchArgument(
@@ -191,7 +198,7 @@ def generate_launch_description():
                 output='screen',
                 respawn=use_respawn,
                 respawn_delay=2.0,
-                parameters=[configured_params],
+                parameters=[configured_params, {'default_nav_to_pose_bt_xml': bt_file}],
                 arguments=['--ros-args', '--log-level', log_level],
                 remappings=remappings,
             ),
@@ -270,6 +277,7 @@ def generate_launch_description():
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
+    ld.add_action(declare_bt_file_cmd)
     ld.add_action(declare_autostart_cmd)
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_log_level_cmd)
