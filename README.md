@@ -4,11 +4,7 @@
 
 `toio_navigation` is ROS 2 package for navigation2 using [toio](https://toio.io/).
 
-
-
 https://github.com/user-attachments/assets/14a0fc6d-14b0-4eac-8972-00bf746670f4
-
-
 
 ## Requirements
 
@@ -31,6 +27,8 @@ I checked this package on the following environment.
 ```bash
 mkdir -p ~/dev_ws/src
 cd ~/dev_ws/src
+git clone https://github.com/atinfinity/toio_description.git
+git clone https://github.com/atinfinity/toio_ros2.git
 git clone https://github.com/atinfinity/toio_navigation.git
 cd ..
 rosdep install -y -i --from-paths src
