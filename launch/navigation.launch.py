@@ -30,13 +30,19 @@ def generate_launch_description():
     toio_navigation_dir = get_package_share_directory('toio_navigation')
 
     namespace = LaunchConfiguration('namespace')
+    map_yaml_file = LaunchConfiguration('map')
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
     params_file = LaunchConfiguration('params_file')
+    bt_file = LaunchConfiguration('bt_file')
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
 
+    rviz_config_dir = os.path.join(toio_navigation_dir, 'rviz')
+    rviz_config_file = os.path.join(rviz_config_dir, 'nav2.rviz')
+
     lifecycle_nodes = [
+        'map_server',
         'controller_server',
         'smoother_server',
         'planner_server',
@@ -78,6 +84,10 @@ def generate_launch_description():
         'namespace', default_value='', description='Top-level namespace'
     )
 
+    declare_map_yaml_cmd = DeclareLaunchArgument(
+        'map', default_value='', description='Full path to map yaml file to load'
+    )
+
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
         default_value='false',
@@ -88,6 +98,12 @@ def generate_launch_description():
         'params_file',
         default_value=os.path.join(toio_navigation_dir, 'params', 'nav2_params.yaml'),
         description='Full path to the ROS2 parameters file to use for all launched nodes',
+    )
+
+    declare_bt_file_cmd = DeclareLaunchArgument(
+        'bt_file',
+        default_value=os.path.join(toio_navigation_dir, 'behavior_trees', 'navigate_to_pose_w_replanning_and_recovery.xml'),
+        description='Full path to the BT XML file',
     )
 
     declare_autostart_cmd = DeclareLaunchArgument(
@@ -110,6 +126,17 @@ def generate_launch_description():
         actions=[
             SetParameter('use_sim_time', use_sim_time),
             Node(
+                package='nav2_map_server',
+                executable='map_server',
+                name='map_server',
+                output='screen',
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[configured_params, {'yaml_filename': map_yaml_file}],
+                arguments=['--ros-args', '--log-level', log_level],
+                remappings=remappings,
+            ),
+            Node(
                 package='nav2_controller',
                 executable='controller_server',
                 output='screen',
@@ -117,7 +144,8 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
+                #remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
+                remappings=remappings,
             ),
             Node(
                 package='nav2_smoother',
@@ -170,7 +198,7 @@ def generate_launch_description():
                 output='screen',
                 respawn=use_respawn,
                 respawn_delay=2.0,
-                parameters=[configured_params],
+                parameters=[configured_params, {'default_nav_to_pose_bt_xml': bt_file}],
                 arguments=['--ros-args', '--log-level', log_level],
                 remappings=remappings,
             ),
@@ -230,6 +258,14 @@ def generate_launch_description():
         ],
     )
 
+    rviz2_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        arguments=['-d', rviz_config_file],
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
+
     # Create the launch description and populate
     ld = LaunchDescription()
 
@@ -238,12 +274,15 @@ def generate_launch_description():
 
     # Declare the launch options
     ld.add_action(declare_namespace_cmd)
+    ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
+    ld.add_action(declare_bt_file_cmd)
     ld.add_action(declare_autostart_cmd)
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_log_level_cmd)
     # Add the actions to launch all of the navigation nodes
     ld.add_action(load_nodes)
+    ld.add_action(rviz2_node)
 
     return ld
