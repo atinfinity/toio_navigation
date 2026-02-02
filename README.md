@@ -21,6 +21,7 @@ I checked this package on the following environment.
 - Ubuntu 24.04
 - ROS 2 Jazzy
 - toio.py 1.10.0
+- toio_ros2 <https://github.com/atinfinity/toio_ros2>
 
 ## Build
 
