@@ -99,3 +99,10 @@ Parameters (`params/nav2_params.yaml`):
   (e.g. `toio2/base_footprint`). Set automatically by
   `toio_multi_navigation.launch.py` via the `peer_namespace` /
   `peer_frame_prefix` arguments.
+
+The node is launched as part of `navigation.launch.py`. It can also be
+launched standalone (e.g. for other robots):
+
+```bash
+ros2 launch toio_navigation peer_robot_costmap_publisher.launch.py namespace:=toio1 peer_base_frames:=toio2/base_footprint
+```
