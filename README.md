@@ -80,3 +80,22 @@ To launch a single stack with namespace for your own robot:
 ```bash
 ros2 launch toio_navigation navigation.launch.py namespace:=toio1 frame_prefix:=toio1/ map:=<MAP_YAML_FILEPATH>
 ```
+
+### Avoidance of the peer robots
+
+`peer_robot_costmap_publisher.py` (launched per robot) looks up the poses of
+the peer robots from TF and publishes an `OccupancyGrid` (`peer_robots_costmap`)
+which marks each peer as a filled rectangle (rotated by the yaw of the peer)
+on top of a copy of the static map. The `peer_robot_layer` (a
+`nav2_costmap_2d::StaticLayer`) of the local/global costmaps consumes it, so
+the planner and the controller avoid the other robots.
+
+Parameters (`params/nav2_params.yaml`):
+
+- `footprint_length` / `footprint_width`: size of the rectangular footprint
+  of a peer robot [m] (default: `0.032`)
+- `update_rate`: publish rate [Hz] (default: `10.0`)
+- `peer_base_frames`: comma-separated TF frames of the peer robots
+  (e.g. `toio2/base_footprint`). Set automatically by
+  `toio_multi_navigation.launch.py` via the `peer_namespace` /
+  `peer_frame_prefix` arguments.

@@ -97,13 +97,22 @@ local_costmap:
       resolution: 0.005
       robot_radius: 0.01
       footprint: "[ [0.006, 0.010], [0.006, -0.010], [-0.014, -0.010], [-0.014, 0.010] ]"
-      plugins: ["static_layer", "inflation_layer"]
+      plugins: ["static_layer", "peer_robot_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 30.0
         inflation_radius: 0.05
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      peer_robot_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        # An absolute name because a layer-level map_topic is resolved
+        # in the namespace of the costmap node (e.g. /toio1/local_costmap).
+        # The grid contains the static map plus the peer robots because
+        # StaticLayer overwrites the master grid (two static layers can
+        # not be combined).
+        map_topic: "<robot_namespace>/peer_robots_costmap"
         map_subscribe_transient_local: True
       always_send_full_costmap: True
 
@@ -118,9 +127,23 @@ global_costmap:
       resolution: 0.005
       footprint: "[ [0.006, 0.010], [0.006, -0.010], [-0.014, -0.010], [-0.014, 0.010] ]"
       track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      plugins: ["static_layer", "peer_robot_layer", "obstacle_layer", "inflation_layer"]
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      # When the plugins list is customized, every layer needs an
+      # explicit plugin type (the defaults are only declared for the
+      # default plugins list).
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+      peer_robot_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        # An absolute name because a layer-level map_topic is resolved
+        # in the namespace of the costmap node (e.g. /toio1/global_costmap).
+        # The grid contains the static map plus the peer robots because
+        # StaticLayer overwrites the master grid (two static layers can
+        # not be combined).
+        map_topic: "<robot_namespace>/peer_robots_costmap"
         map_subscribe_transient_local: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -330,6 +353,15 @@ docking_server:
       projection_time: 5.0
       simulation_step: 0.1
       dock_collision_threshold: 0.3
+
+# Marks the peer robots (other robots on the shared map) as rectangular
+# obstacles on the peer_robots_costmap topic, which is consumed by the
+# peer_robot_layer of the costmaps. peer_base_frames is set from launch.
+peer_robot_costmap_publisher:
+  ros__parameters:
+    footprint_length: 0.032
+    footprint_width: 0.032
+    update_rate: 10.0
 
 loopback_simulator:
   ros__parameters:

@@ -69,7 +69,11 @@ def generate_launch_description():
 
     params_file_with_prefix = ReplaceString(
         source_file=params_file,
-        replacements={'<frame_prefix>': frame_prefix},
+        replacements={
+            '<frame_prefix>': frame_prefix,
+            '<robot_namespace>': PythonExpression(
+                ["'' if '", namespace, "' == '' else '/' + '", namespace, "'"]),
+        },
     )
 
     configured_params = ParameterFile(
@@ -286,6 +290,21 @@ def generate_launch_description():
                 output='screen',
                 arguments=['--ros-args', '--log-level', log_level],
                 parameters=[{'autostart': autostart}, {'node_names': lifecycle_nodes}],
+            ),
+            Node(
+                package='toio_navigation',
+                executable='peer_robot_costmap_publisher.py',
+                name='peer_robot_costmap_publisher',
+                output='screen',
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[
+                    configured_params,
+                    {'peer_base_frames': PythonExpression(
+                        ["'", peer_frame_prefix, "base_footprint' if '",
+                         peer_namespace, "' != '' else ''"])},
+                ],
+                arguments=['--ros-args', '--log-level', log_level],
             ),
         ],
     )
