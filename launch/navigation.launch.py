@@ -18,11 +18,13 @@ from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, SetEnvironmentVariable
-from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import SetParameter
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+from launch_ros.actions import PushRosNamespace
+from launch_ros.actions import SetParameter
 from launch_ros.descriptions import ParameterFile
-from nav2_common.launch import RewrittenYaml
+from nav2_common.launch import ReplaceString, RewrittenYaml
 
 
 def generate_launch_description():
@@ -30,16 +32,20 @@ def generate_launch_description():
     toio_navigation_dir = get_package_share_directory('toio_navigation')
 
     namespace = LaunchConfiguration('namespace')
+    frame_prefix = LaunchConfiguration('frame_prefix')
+    peer_namespace = LaunchConfiguration('peer_namespace')
+    peer_frame_prefix = LaunchConfiguration('peer_frame_prefix')
     map_yaml_file = LaunchConfiguration('map')
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
     params_file = LaunchConfiguration('params_file')
     bt_file = LaunchConfiguration('bt_file')
     use_respawn = LaunchConfiguration('use_respawn')
+    use_rviz = LaunchConfiguration('use_rviz')
+    rviz_config_file = LaunchConfiguration('rviz_config')
     log_level = LaunchConfiguration('log_level')
 
     rviz_config_dir = os.path.join(toio_navigation_dir, 'rviz')
-    rviz_config_file = os.path.join(rviz_config_dir, 'nav2.rviz')
 
     lifecycle_nodes = [
         'map_server',
@@ -55,20 +61,20 @@ def generate_launch_description():
         'docking_server',
     ]
 
-    # Map fully qualified names to relative ones so the node's namespace can be prepended.
-    # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
-    # https://github.com/ros/geometry2/issues/32
-    # https://github.com/ros/robot_state_publisher/pull/30
-    # TODO(orduno) Substitute with `PushNodeRemapping`
-    #              https://github.com/ros2/launch_ros/issues/56
-    remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
-
+    # The robots are separated by the shared /tf with frame_prefix
+    # (e.g. map -> toio1/center) following the convention of toio_ros2 and
+    # toio_gazebo, so /tf is NOT remapped into the namespace here.
     # Create our own temporary YAML files that include substitutions
     param_substitutions = {'autostart': autostart}
 
+    params_file_with_prefix = ReplaceString(
+        source_file=params_file,
+        replacements={'<frame_prefix>': frame_prefix},
+    )
+
     configured_params = ParameterFile(
         RewrittenYaml(
-            source_file=params_file,
+            source_file=params_file_with_prefix,
             root_key=namespace,
             param_rewrites=param_substitutions,
             convert_types=True,
@@ -82,6 +88,32 @@ def generate_launch_description():
 
     declare_namespace_cmd = DeclareLaunchArgument(
         'namespace', default_value='', description='Top-level namespace'
+    )
+
+    declare_frame_prefix_cmd = DeclareLaunchArgument(
+        'frame_prefix',
+        default_value='',
+        description='Prefix of the TF frames (e.g. "toio1/")',
+    )
+
+    declare_peer_namespace_cmd = DeclareLaunchArgument(
+        'peer_namespace',
+        default_value='',
+        description='Namespace of the peer robot shown in RViz '
+                    '(used by rviz/nav2_multi.rviz)',
+    )
+
+    declare_peer_frame_prefix_cmd = DeclareLaunchArgument(
+        'peer_frame_prefix',
+        default_value='',
+        description='TF frame prefix of the peer robot shown in RViz '
+                    '(used by rviz/nav2_multi.rviz)',
+    )
+
+    declare_rviz_config_cmd = DeclareLaunchArgument(
+        'rviz_config',
+        default_value=os.path.join(rviz_config_dir, 'nav2.rviz'),
+        description='Full path to the RViz config file template',
     )
 
     declare_map_yaml_cmd = DeclareLaunchArgument(
@@ -102,7 +134,9 @@ def generate_launch_description():
 
     declare_bt_file_cmd = DeclareLaunchArgument(
         'bt_file',
-        default_value=os.path.join(toio_navigation_dir, 'behavior_trees', 'navigate_to_pose_w_replanning_and_recovery.xml'),
+        default_value=os.path.join(
+            toio_navigation_dir, 'behavior_trees',
+            'navigate_to_pose_w_replanning_and_recovery.xml'),
         description='Full path to the BT XML file',
     )
 
@@ -118,12 +152,20 @@ def generate_launch_description():
         description='Whether to respawn if a node crashes. Applied when composition is disabled.',
     )
 
+    declare_use_rviz_cmd = DeclareLaunchArgument(
+        'use_rviz', default_value='True', description='Whether to start RViz'
+    )
+
     declare_log_level_cmd = DeclareLaunchArgument(
         'log_level', default_value='info', description='log level'
     )
 
     load_nodes = GroupAction(
         actions=[
+            PushRosNamespace(
+                condition=IfCondition(
+                    PythonExpression(["'", namespace, "' != ''"])),
+                namespace=namespace),
             SetParameter('use_sim_time', use_sim_time),
             Node(
                 package='nav2_map_server',
@@ -134,7 +176,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params, {'yaml_filename': map_yaml_file}],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='nav2_controller',
@@ -144,8 +185,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                #remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
-                remappings=remappings,
+                # remappings=[('cmd_vel', 'cmd_vel_nav')],
             ),
             Node(
                 package='nav2_smoother',
@@ -156,7 +196,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='nav2_planner',
@@ -167,7 +206,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='nav2_route',
@@ -178,7 +216,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='nav2_behaviors',
@@ -189,7 +226,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
+                remappings=[('cmd_vel', 'cmd_vel_nav')],
             ),
             Node(
                 package='nav2_bt_navigator',
@@ -200,7 +237,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params, {'default_nav_to_pose_bt_xml': bt_file}],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='nav2_waypoint_follower',
@@ -211,7 +247,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='nav2_velocity_smoother',
@@ -222,8 +257,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings
-                + [('cmd_vel', 'cmd_vel_nav')],
+                remappings=[('cmd_vel', 'cmd_vel_nav')],
             ),
             Node(
                 package='nav2_collision_monitor',
@@ -234,7 +268,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='opennav_docking',
@@ -245,7 +278,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings,
             ),
             Node(
                 package='nav2_lifecycle_manager',
@@ -258,11 +290,32 @@ def generate_launch_description():
         ],
     )
 
+    # <robot_namespace> in the rviz config is expanded to '' (default) or
+    # '/<namespace>' so that the same config works for both cases.
+    # <tf_frame_prefix> is the frame_prefix without the trailing slash
+    # because the RobotModel display joins it with the link name by '/'.
+    namespaced_rviz_config_file = ReplaceString(
+        source_file=rviz_config_file,
+        replacements={
+            '<robot_namespace>': PythonExpression(
+                ["'' if '", namespace, "' == '' else '/' + '", namespace, "'"]),
+            '<tf_frame_prefix>': PythonExpression(
+                ["'", frame_prefix, "'.rstrip('/')"]),
+            '<peer_robot_namespace>': PythonExpression(
+                ["'' if '", peer_namespace, "' == '' else '/' + '",
+                 peer_namespace, "'"]),
+            '<peer_tf_frame_prefix>': PythonExpression(
+                ["'", peer_frame_prefix, "'.rstrip('/')"]),
+        },
+    )
+
     rviz2_node = Node(
+        condition=IfCondition(use_rviz),
         package='rviz2',
         executable='rviz2',
         name='rviz2',
-        arguments=['-d', rviz_config_file],
+        namespace=namespace,
+        arguments=['-d', namespaced_rviz_config_file],
         parameters=[{'use_sim_time': use_sim_time}],
         output='screen')
 
@@ -274,12 +327,17 @@ def generate_launch_description():
 
     # Declare the launch options
     ld.add_action(declare_namespace_cmd)
+    ld.add_action(declare_frame_prefix_cmd)
+    ld.add_action(declare_peer_namespace_cmd)
+    ld.add_action(declare_peer_frame_prefix_cmd)
+    ld.add_action(declare_rviz_config_cmd)
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_bt_file_cmd)
     ld.add_action(declare_autostart_cmd)
     ld.add_action(declare_use_respawn_cmd)
+    ld.add_action(declare_use_rviz_cmd)
     ld.add_action(declare_log_level_cmd)
     # Add the actions to launch all of the navigation nodes
     ld.add_action(load_nodes)
