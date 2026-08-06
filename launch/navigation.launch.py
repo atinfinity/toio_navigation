@@ -293,7 +293,7 @@ def generate_launch_description():
             ),
             Node(
                 package='toio_navigation',
-                executable='peer_robot_costmap_publisher.py',
+                executable='peer_robot_costmap_publisher',
                 name='peer_robot_costmap_publisher',
                 output='screen',
                 respawn=use_respawn,

@@ -2,13 +2,16 @@ cmake_minimum_required(VERSION 3.10)
 project(toio_navigation)
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(navigation2 REQUIRED)
 
 nav2_package()
 
+ament_python_install_package(${PROJECT_NAME})
+
 install(PROGRAMS
-  scripts/peer_robot_costmap_publisher.py
+  scripts/peer_robot_costmap_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 
