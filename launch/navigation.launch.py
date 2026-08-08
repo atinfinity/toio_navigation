@@ -47,18 +47,19 @@ def generate_launch_description():
 
     rviz_config_dir = os.path.join(toio_navigation_dir, 'rviz')
 
+    # toio has no range sensor and no dock, so the sensor/dock-dependent
+    # servers of the standard nav2 bringup (collision_monitor without an
+    # existing observation source, docking_server, route_server without a
+    # graph, and velocity_smoother) are not launched: with two robots on
+    # one machine every extra server costs a process per robot.
     lifecycle_nodes = [
         'map_server',
         'controller_server',
         'smoother_server',
         'planner_server',
-        'route_server',
         'behavior_server',
-        'velocity_smoother',
-        'collision_monitor',
         'bt_navigator',
         'waypoint_follower',
-        'docking_server',
     ]
 
     # The robots are separated by the shared /tf with frame_prefix
@@ -189,7 +190,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                # remappings=[('cmd_vel', 'cmd_vel_nav')],
             ),
             Node(
                 package='nav2_smoother',
@@ -212,16 +212,6 @@ def generate_launch_description():
                 arguments=['--ros-args', '--log-level', log_level],
             ),
             Node(
-                package='nav2_route',
-                executable='route_server',
-                name='route_server',
-                output='screen',
-                respawn=use_respawn,
-                respawn_delay=2.0,
-                parameters=[configured_params],
-                arguments=['--ros-args', '--log-level', log_level],
-            ),
-            Node(
                 package='nav2_behaviors',
                 executable='behavior_server',
                 name='behavior_server',
@@ -230,7 +220,6 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=[('cmd_vel', 'cmd_vel_nav')],
             ),
             Node(
                 package='nav2_bt_navigator',
@@ -246,37 +235,6 @@ def generate_launch_description():
                 package='nav2_waypoint_follower',
                 executable='waypoint_follower',
                 name='waypoint_follower',
-                output='screen',
-                respawn=use_respawn,
-                respawn_delay=2.0,
-                parameters=[configured_params],
-                arguments=['--ros-args', '--log-level', log_level],
-            ),
-            Node(
-                package='nav2_velocity_smoother',
-                executable='velocity_smoother',
-                name='velocity_smoother',
-                output='screen',
-                respawn=use_respawn,
-                respawn_delay=2.0,
-                parameters=[configured_params],
-                arguments=['--ros-args', '--log-level', log_level],
-                remappings=[('cmd_vel', 'cmd_vel_nav')],
-            ),
-            Node(
-                package='nav2_collision_monitor',
-                executable='collision_monitor',
-                name='collision_monitor',
-                output='screen',
-                respawn=use_respawn,
-                respawn_delay=2.0,
-                parameters=[configured_params],
-                arguments=['--ros-args', '--log-level', log_level],
-            ),
-            Node(
-                package='opennav_docking',
-                executable='opennav_docking',
-                name='docking_server',
                 output='screen',
                 respawn=use_respawn,
                 respawn_delay=2.0,
