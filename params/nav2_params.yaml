@@ -96,9 +96,12 @@ local_costmap:
       publish_frequency: 2.0
       global_frame: map
       robot_base_frame: <frame_prefix>base_link
-      rolling_window: true
-      width: 1
-      height: 1
+      # A rolling 1x1m window (200x200 cells at 5Hz) is oversized for a
+      # play mat that is at most 0.42x0.30m (A3): a non-rolling costmap
+      # sized by the static map covers the robot's whole world with a
+      # fraction of the cells (60x40 on A4) and automatically follows
+      # whichever mat map is loaded.
+      rolling_window: false
       resolution: 0.005
       robot_radius: 0.01
       footprint: "[ [0.006, 0.010], [0.006, -0.010], [-0.014, -0.010], [-0.014, 0.010] ]"
