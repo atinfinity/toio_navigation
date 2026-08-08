@@ -172,7 +172,13 @@ planner_server:
     costmap_update_timeout: 1.0
     GridBased:
       plugin: "nav2_navfn_planner::NavfnPlanner"
-      tolerance: 0.2
+      # Matched to the play-mat scale: large enough for the tolerance search
+      # to escape a peer robot blocking the goal (peer rectangle half-diagonal
+      # ~0.023m + inflation inscribed radius ~0.010m), small enough that the
+      # search window stays inside the map (a 0.2 tolerance scanned mostly
+      # outside the 0.30x0.20m map, flooding the log with worldToMap errors
+      # and letting the robot's own pose win as substitute goal; issue #3).
+      tolerance: 0.05
       use_astar: false
       allow_unknown: true
 
