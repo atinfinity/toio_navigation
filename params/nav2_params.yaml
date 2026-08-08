@@ -4,7 +4,12 @@ bt_navigator:
     robot_base_frame: <frame_prefix>base_link
     odom_topic: odom
     bt_loop_duration: 10
-    default_server_timeout: 20
+    # 20ms is not enough headroom on a loaded machine (e.g. multi-robot
+    # launch with several RViz instances): the BT times out waiting for
+    # compute_path_to_pose / follow_path goal acknowledgement and aborts
+    # the whole navigation right after the goal is sent, while the
+    # un-acknowledged FollowPath keeps running in controller_server.
+    default_server_timeout: 100
     wait_for_service_timeout: 1000
     action_server_result_timeout: 900.0
     navigators: ["navigate_to_pose", "navigate_through_poses"]
