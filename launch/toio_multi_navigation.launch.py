@@ -62,6 +62,8 @@ def navigation_robots(context):
                         f'{first_peer}/' if first_peer else '',
                     'peer_frame_prefixes':
                         ','.join(f'{p}/' for p in peers),
+                    'peer_footprint_size':
+                        context.launch_configurations['peer_footprint_size'],
                     'map': context.launch_configurations['map'],
                     'use_sim_time':
                         context.launch_configurations['use_sim_time'],
@@ -100,11 +102,19 @@ def generate_launch_description():
         description='Comma-separated list of robot namespaces',
     )
 
+    declare_peer_footprint_size_cmd = DeclareLaunchArgument(
+        'peer_footprint_size',
+        default_value='0.032',
+        description='Edge length (m) of the square footprint painted for '
+                    'peer robots (see navigation.launch.py)',
+    )
+
     ld = LaunchDescription()
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_use_rviz_cmd)
     ld.add_action(declare_robots_cmd)
+    ld.add_action(declare_peer_footprint_size_cmd)
 
     ld.add_action(OpaqueFunction(function=navigation_robots))
     return ld
