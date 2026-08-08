@@ -35,6 +35,7 @@ def generate_launch_description():
     frame_prefix = LaunchConfiguration('frame_prefix')
     peer_namespace = LaunchConfiguration('peer_namespace')
     peer_frame_prefix = LaunchConfiguration('peer_frame_prefix')
+    peer_frame_prefixes = LaunchConfiguration('peer_frame_prefixes')
     map_yaml_file = LaunchConfiguration('map')
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
@@ -113,6 +114,14 @@ def generate_launch_description():
         default_value='',
         description='TF frame prefix of the peer robot shown in RViz '
                     '(used by rviz/nav2_multi.rviz)',
+    )
+
+    declare_peer_frame_prefixes_cmd = DeclareLaunchArgument(
+        'peer_frame_prefixes',
+        default_value='',
+        description='Comma-separated TF frame prefixes of ALL peer robots '
+                    '(e.g. "toio2/,toio3/") for peer_robot_costmap_publisher. '
+                    'Empty: fall back to the single peer_frame_prefix',
     )
 
     declare_rviz_config_cmd = DeclareLaunchArgument(
@@ -258,9 +267,15 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[
                     configured_params,
+                    # peer_frame_prefixes (list form, for 3+ robots) takes
+                    # precedence over the single peer_frame_prefix
                     {'peer_base_frames': PythonExpression(
-                        ["'", peer_frame_prefix, "base_footprint' if '",
-                         peer_namespace, "' != '' else ''"])},
+                        ["','.join(p.strip() + 'base_footprint' "
+                         "for p in '", peer_frame_prefixes,
+                         "'.split(',') if p.strip()) if '",
+                         peer_frame_prefixes, "' != '' else ('",
+                         peer_frame_prefix, "base_footprint' if '",
+                         peer_namespace, "' != '' else '')"])},
                 ],
                 arguments=['--ros-args', '--log-level', log_level],
             ),
@@ -307,6 +322,7 @@ def generate_launch_description():
     ld.add_action(declare_frame_prefix_cmd)
     ld.add_action(declare_peer_namespace_cmd)
     ld.add_action(declare_peer_frame_prefix_cmd)
+    ld.add_action(declare_peer_frame_prefixes_cmd)
     ld.add_action(declare_rviz_config_cmd)
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
