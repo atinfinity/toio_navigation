@@ -23,6 +23,7 @@ from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.actions import PushRosNamespace
 from launch_ros.actions import SetParameter
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.descriptions import ParameterFile
 from nav2_common.launch import ReplaceString, RewrittenYaml
 
@@ -35,6 +36,8 @@ def generate_launch_description():
     frame_prefix = LaunchConfiguration('frame_prefix')
     peer_namespace = LaunchConfiguration('peer_namespace')
     peer_frame_prefix = LaunchConfiguration('peer_frame_prefix')
+    peer_frame_prefixes = LaunchConfiguration('peer_frame_prefixes')
+    peer_footprint_size = LaunchConfiguration('peer_footprint_size')
     map_yaml_file = LaunchConfiguration('map')
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
@@ -113,6 +116,23 @@ def generate_launch_description():
         default_value='',
         description='TF frame prefix of the peer robot shown in RViz '
                     '(used by rviz/nav2_multi.rviz)',
+    )
+
+    declare_peer_frame_prefixes_cmd = DeclareLaunchArgument(
+        'peer_frame_prefixes',
+        default_value='',
+        description='Comma-separated TF frame prefixes of ALL peer robots '
+                    '(e.g. "toio2/,toio3/") for peer_robot_costmap_publisher. '
+                    'Empty: fall back to the single peer_frame_prefix',
+    )
+
+    declare_peer_footprint_size_cmd = DeclareLaunchArgument(
+        'peer_footprint_size',
+        default_value='0.032',
+        description='Edge length (m) of the square footprint that '
+                    'peer_robot_costmap_publisher paints for each peer '
+                    'robot. Larger values add avoidance margin (e.g. an '
+                    'external traffic authority may want 0.06)',
     )
 
     declare_rviz_config_cmd = DeclareLaunchArgument(
@@ -258,9 +278,19 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[
                     configured_params,
+                    # peer_frame_prefixes (list form, for 3+ robots) takes
+                    # precedence over the single peer_frame_prefix
                     {'peer_base_frames': PythonExpression(
-                        ["'", peer_frame_prefix, "base_footprint' if '",
-                         peer_namespace, "' != '' else ''"])},
+                        ["','.join(p.strip() + 'base_footprint' "
+                         "for p in '", peer_frame_prefixes,
+                         "'.split(',') if p.strip()) if '",
+                         peer_frame_prefixes, "' != '' else ('",
+                         peer_frame_prefix, "base_footprint' if '",
+                         peer_namespace, "' != '' else '')"])},
+                    {'footprint_length': ParameterValue(
+                        peer_footprint_size, value_type=float),
+                     'footprint_width': ParameterValue(
+                        peer_footprint_size, value_type=float)},
                 ],
                 arguments=['--ros-args', '--log-level', log_level],
             ),
@@ -307,6 +337,8 @@ def generate_launch_description():
     ld.add_action(declare_frame_prefix_cmd)
     ld.add_action(declare_peer_namespace_cmd)
     ld.add_action(declare_peer_frame_prefix_cmd)
+    ld.add_action(declare_peer_frame_prefixes_cmd)
+    ld.add_action(declare_peer_footprint_size_cmd)
     ld.add_action(declare_rviz_config_cmd)
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)

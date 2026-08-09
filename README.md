@@ -53,7 +53,10 @@ If you use Gazebo simulator, please add `use_sim_time:=True`.
 
 ## Multi-robot navigation
 
-`toio_multi_navigation.launch.py` launches two nav2 stacks for `toio1` and `toio2`.
+`toio_multi_navigation.launch.py` launches one nav2 stack per robot.
+The robot list defaults to `toio1,toio2` and can be changed with the
+`robots` argument (e.g. `robots:=toio1,toio2,toio3`); every robot gets
+all the other robots as peers for `peer_robot_costmap_publisher`.
 Each stack is separated by ROS namespace, and the TF frames are separated by
 `frame_prefix` (e.g. `toio1/base_link`) on the shared `/tf`. The `map` frame is
 shared by all robots.
