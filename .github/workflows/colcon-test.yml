@@ -1,0 +1,36 @@
+name: colcon-test
+
+on: push
+
+jobs:
+  colcon-test:
+    runs-on: ubuntu-latest
+    container: ros:jazzy-ros-base
+    steps:
+      - name: Checkout toio_navigation
+        uses: actions/checkout@v4
+        with:
+          path: src/toio_navigation
+
+      # navigation2 is a build dependency (nav2_package() and the nav2_common
+      # launch helpers), so this step pulls the whole Nav2 stack
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt-get update
+          rosdep update
+          rosdep install --from-paths src --ignore-src -y
+
+      - name: Build
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --packages-up-to toio_navigation
+
+      - name: Test
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          colcon test --packages-select toio_navigation --event-handlers console_cohesion+
+          colcon test-result --verbose
