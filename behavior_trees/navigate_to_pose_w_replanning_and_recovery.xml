@@ -38,7 +38,25 @@
               <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
               <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
             </Sequence>
-            <Spin spin_dist="1.57" error_code_id="{spin_error_code}"/>
+            <!--
+              Upstream has a Spin here. It is dropped because on this scale
+              it does harm and no good: rotating in place drifts, and a cube
+              that leaves the play mat loses its Position ID, which stops the
+              pose stream and needs a human to put it back (seen on hardware
+              while reproducing toio_rmf_bringup#5). It buys nothing in
+              exchange, because obstacle_layer has no observation sources on
+              these robots, so turning reveals no new costmap information.
+
+              BackUp is not used in its place either, although that is the
+              motion that recovers the case this recovery subtree keeps
+              failing to fix - a robot stopped inside a peer's footprint.
+              Measured on hardware: the behavior refuses to run at all,
+              because its collision check rejects the pose the robot is
+              already standing in ("Collision Ahead - Exiting
+              DriveOnHeading"), which is the very pose it would be escaping.
+              That escape is done by toio_fleet_adapter instead, which drives
+              cmd_vel directly and so is not blocked by the same check.
+            -->
             <Wait wait_duration="5.0"/>
           </RoundRobin>
         </ReactiveFallback>
