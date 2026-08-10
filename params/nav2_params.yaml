@@ -101,6 +101,12 @@ local_costmap:
       publish_frequency: 2.0
       global_frame: map
       robot_base_frame: <frame_prefix>base_link
+      # map -> base_link comes from the hardware bridge, which is started in
+      # a second terminal by hand. The default 60s is not enough to power on
+      # the cubes and let BLE connect if RMF was started first, and running
+      # out is unrecoverable: activation errors, the lifecycle manager aborts
+      # the whole bringup and never retries. See toio_rmf_bringup#6.
+      initial_transform_timeout: 300.0
       # A rolling 1x1m window (200x200 cells at 5Hz) is oversized for a
       # play mat that is at most 0.42x0.30m (A3): a non-rolling costmap
       # sized by the static map covers the robot's whole world with a
@@ -145,6 +151,8 @@ global_costmap:
       publish_frequency: 2.0
       global_frame: map
       robot_base_frame: <frame_prefix>base_link
+      # See the local_costmap comment: waiting for the bridge's TF.
+      initial_transform_timeout: 300.0
       robot_radius: 0.01
       resolution: 0.005
       # See the local_costmap footprint comment: the real cube body in
