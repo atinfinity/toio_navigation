@@ -69,12 +69,20 @@ controller_server:
       lookahead_time: 5.0
       rotate_to_heading_angular_vel: 5.0
       use_velocity_scaled_lookahead_dist: true
-      min_approach_linear_velocity: 0.1
+      # Crawl over the last approach_velocity_scaling_dist so the cube lands on
+      # the waypoint instead of overshooting it. At the old value 0.1
+      # (== desired_linear_vel) approach deceleration was fully masked: the
+      # cube reached the goal at full 0.1 m/s and, since one 20 Hz control step
+      # moves 0.1/20 = 5 mm == xy_goal_tolerance, it stepped past the 5 mm goal
+      # band in a single cycle. With allow_reversing: false it then curved back
+      # around and passed through again, hunting across the waypoint several
+      # times before general_goal_checker latched. 0.02 m/s is 1 mm/step, well
+      # inside the tolerance, so the cube settles in one pass.
+      min_approach_linear_velocity: 0.02
       # Matched to the play-mat scale: 0.6m was twice the A4 mat length and
-      # larger than the forward local-costmap extent (0.5m), so the
-      # controller warned "leading to permanent slowdown" on every launch
-      # and the robot was always in approach-deceleration mode (currently
-      # masked by min_approach_linear_velocity == desired_linear_vel).
+      # larger than the forward local-costmap extent (0.5m), so the controller
+      # warned "leading to permanent slowdown" on every launch. 0.05m keeps the
+      # deceleration zone within the local costmap.
       approach_velocity_scaling_dist: 0.05
       use_collision_detection: false
       max_allowed_time_to_collision_up_to_carrot: 1.0
