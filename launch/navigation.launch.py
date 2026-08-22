@@ -54,11 +54,15 @@ def generate_launch_description():
     # toio has no range sensor and no dock, so the sensor/dock-dependent
     # servers of the standard nav2 bringup (collision_monitor without an
     # existing observation source, docking_server, route_server without a
-    # graph, and velocity_smoother) are not launched: with two robots on
-    # one machine every extra server costs a process per robot.
+    # graph) are not launched: with two robots on one machine every extra
+    # server costs a process per robot.
+    # velocity_smoother is launched (open-loop) now that /odom exists; it
+    # smooths the controller cmd_vel before the cube (controller -> cmd_vel_nav
+    # -> velocity_smoother -> cmd_vel).
     lifecycle_nodes = [
         'map_server',
         'controller_server',
+        'velocity_smoother',
         'smoother_server',
         'planner_server',
         'behavior_server',
@@ -226,6 +230,21 @@ def generate_launch_description():
                 respawn=use_respawn,
                 respawn_delay=2.0,
                 parameters=[configured_params],
+                # Route the controller output through velocity_smoother, which
+                # republishes it on cmd_vel for the cube.
+                remappings=[('cmd_vel', 'cmd_vel_nav')],
+                arguments=['--ros-args', '--log-level', log_level],
+            ),
+            Node(
+                package='nav2_velocity_smoother',
+                executable='velocity_smoother',
+                name='velocity_smoother',
+                output='screen',
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[configured_params],
+                remappings=[('cmd_vel', 'cmd_vel_nav'),
+                            ('cmd_vel_smoothed', 'cmd_vel')],
                 arguments=['--ros-args', '--log-level', log_level],
             ),
             Node(
