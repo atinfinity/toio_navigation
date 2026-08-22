@@ -101,3 +101,21 @@ Two things that do not work on this cube, found the hard way:
 - Graceful's default `v_angular_min_in_place` (0.25 rad/s) leaves the
   initial rotation stalled for the same reason (0.017 m/s per wheel), hence
   2.0 rad/s.
+
+## Maps and controllers (simulation)
+
+Notes from the headless sim (`toio_gazebo` + `toio_navigation`, `NavfnPlanner`
++ `FollowPath`) on which controller drives which map cleanly. In sim the cube
+has no range sensor and the world has no physical maze walls, so the map walls
+exist only in the static costmap and the controller simply follows the plan.
+
+- **zigzag maps** (`toio_a4_map_zigzag`, `toio_a3_map_zigzag`): wide, gently
+  weaving channels. The default `FollowPath` (RPP) follows them to the far
+  corner cleanly, with the footprint clearing the walls (~3-5 mm final).
+- **spiral maps** (`toio_a4_map_spiral`, `toio_a3_map_spiral`): the centre is
+  reached cleanly with a loose / velocity-scaled lookahead. With the current
+  fixed 0.1 m lookahead plus `use_rotate_to_heading`, RPP rotates in place on
+  the continuously-curving inner turns and the progress checker aborts before
+  the centre (A4) or the footprint grazes the wall through the tight centre
+  curl (A3). Until this is resolved, drive the spiral maps with a
+  loose-lookahead RPP profile. See #24.
