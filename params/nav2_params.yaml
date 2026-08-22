@@ -41,7 +41,12 @@ controller_server:
     failure_tolerance: 0.3
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
-    controller_plugins: ["FollowPath"]
+    # FollowPath (RPP) is the default. FollowPathGraceful is registered next
+    # to it so the two can be compared on the same route: pick one with the
+    # 'controller' launch argument, or switch at runtime through the BT's
+    # ControllerSelector (topic 'controller_selector', transient local).
+    # See docs/controllers.md.
+    controller_plugins: ["FollowPath", "FollowPathGraceful"]
     use_realtime_priority: false
 
     # Progress checker parameters
@@ -63,12 +68,17 @@ controller_server:
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       desired_linear_vel: 0.1
+      # A fixed lookahead. With velocity scaling the lookahead was
+      # desired_linear_vel * lookahead_time = 0.1 * 5.0 = 0.5m, always
+      # clipped to max_lookahead_dist (0.15m) - half of the A4 mat - so the
+      # cube cut every corner of the planned path. 0.1m is one lookahead of
+      # ~3 cube lengths, which still smooths the 5mm-grid path.
       lookahead_dist: 0.1
       min_lookahead_dist: 0.05
       max_lookahead_dist: 0.15
-      lookahead_time: 5.0
+      lookahead_time: 1.0
       rotate_to_heading_angular_vel: 5.0
-      use_velocity_scaled_lookahead_dist: true
+      use_velocity_scaled_lookahead_dist: false
       # Crawl over the last approach_velocity_scaling_dist so the cube lands on
       # the waypoint instead of overshooting it. At the old value 0.1
       # (== desired_linear_vel) approach deceleration was fully masked: the
@@ -76,9 +86,13 @@ controller_server:
       # moves 0.1/20 = 5 mm == xy_goal_tolerance, it stepped past the 5 mm goal
       # band in a single cycle. With allow_reversing: false it then curved back
       # around and passed through again, hunting across the waypoint several
-      # times before general_goal_checker latched. 0.02 m/s is 1 mm/step, well
-      # inside the tolerance, so the cube settles in one pass.
-      min_approach_linear_velocity: 0.02
+      # times before general_goal_checker latched. 0.03 m/s is 1.5 mm/step,
+      # well inside the tolerance, so the cube settles in one pass. It cannot
+      # go lower: the cube's motor takes speed values of 8 and up (about
+      # 0.0225 m/s), and 0.02 m/s maps to a value of 7, which does not move
+      # the wheels at all (checked on hardware: the cube stopped dead in the
+      # approach zone and the progress checker aborted).
+      min_approach_linear_velocity: 0.03
       # Matched to the play-mat scale: 0.6m was twice the A4 mat length and
       # larger than the forward local-costmap extent (0.5m), so the controller
       # warned "leading to permanent slowdown" on every launch. 0.05m keeps the
@@ -100,6 +114,45 @@ controller_server:
       max_angular_accel: 40.0
       min_distance_to_obstacle: 0.0
       stateful: true
+    # Graceful Controller: a smooth pose-following control law (Park &
+    # Kuipers) that converges onto the goal pose instead of tracking a carrot,
+    # which is expected to land the cube on the 5mm goal band more cleanly
+    # than RPP. Candidate for comparison on hardware; the speeds match the
+    # RPP configuration above.
+    FollowPathGraceful:
+      plugin: "nav2_graceful_controller::GracefulController"
+      transform_tolerance: 0.1
+      # Lookahead of the pose the controller steers to, scaled with the speed
+      # between these two. The nav2 defaults (0.25-1.0m) are larger than the
+      # mat; 0.05-0.1m matches the RPP lookahead.
+      min_lookahead: 0.05
+      max_lookahead: 0.1
+      # Rotate in place first when the path heading differs by more than
+      # initial_rotation_tolerance (rad; RPP rotates from 0.5).
+      initial_rotation: true
+      initial_rotation_tolerance: 0.5
+      # Rotate in place to the final yaw once the position is reached.
+      prefer_final_rotation: true
+      rotation_scaling_factor: 0.5
+      allow_backward: false
+      # Control law gains (nav2 defaults).
+      k_phi: 3.0
+      k_delta: 2.0
+      beta: 0.4
+      lambda: 2.0
+      # Same linear limits as RPP: cruise 0.1 m/s, 0.03 m/s (1.5mm per 20Hz
+      # step, and the slowest the cube's motor runs, see
+      # min_approach_linear_velocity above) on the final approach, slowing
+      # down over the last 0.05m.
+      v_linear_min: 0.03
+      v_linear_max: 0.1
+      v_angular_max: 5.0
+      # An in-place turn below about 1.7 rad/s (0.0225 m/s per wheel) does not
+      # move the cube; the nav2 default of 0.25 left the initial rotation
+      # stalled on hardware. 2.5 rad/s is 0.033 m/s per wheel.
+      v_angular_min_in_place: 2.5
+      slowdown_radius: 0.05
+
 
 
 local_costmap:

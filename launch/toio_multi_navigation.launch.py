@@ -68,6 +68,8 @@ def navigation_robots(context):
                     'use_sim_time':
                         context.launch_configurations['use_sim_time'],
                     'use_rviz': context.launch_configurations['use_rviz'],
+                    'controller':
+                        context.launch_configurations['controller'],
                     'rviz_config': rviz_config_file,
                 }.items()),
         ]))
@@ -109,12 +111,20 @@ def generate_launch_description():
                     'peer robots (see navigation.launch.py)',
     )
 
+    declare_controller_cmd = DeclareLaunchArgument(
+        'controller',
+        default_value='FollowPath',
+        description='Controller plugin for every robot: "FollowPath" (RPP) '
+                    'or "FollowPathGraceful" (see navigation.launch.py)',
+    )
+
     ld = LaunchDescription()
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_use_rviz_cmd)
     ld.add_action(declare_robots_cmd)
     ld.add_action(declare_peer_footprint_size_cmd)
+    ld.add_action(declare_controller_cmd)
 
     ld.add_action(OpaqueFunction(function=navigation_robots))
     return ld

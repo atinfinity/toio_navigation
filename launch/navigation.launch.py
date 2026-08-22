@@ -43,6 +43,7 @@ def generate_launch_description():
     autostart = LaunchConfiguration('autostart')
     params_file = LaunchConfiguration('params_file')
     bt_file = LaunchConfiguration('bt_file')
+    controller = LaunchConfiguration('controller')
     use_respawn = LaunchConfiguration('use_respawn')
     use_rviz = LaunchConfiguration('use_rviz')
     rviz_config_file = LaunchConfiguration('rviz_config')
@@ -78,6 +79,14 @@ def generate_launch_description():
             '<robot_namespace>': PythonExpression(
                 ["'' if '", namespace, "' == '' else '/' + '", namespace, "'"]),
         },
+    )
+
+    # The BT's ControllerSelector default is chosen by the 'controller'
+    # launch argument (FollowPath = RPP, FollowPathGraceful = Graceful
+    # Controller, both registered in nav2_params.yaml).
+    bt_file_with_controller = ReplaceString(
+        source_file=bt_file,
+        replacements={'@default_controller@': controller},
     )
 
     configured_params = ParameterFile(
@@ -165,6 +174,14 @@ def generate_launch_description():
         description='Full path to the BT XML file',
     )
 
+    declare_controller_cmd = DeclareLaunchArgument(
+        'controller',
+        default_value='FollowPath',
+        description='Controller plugin selected by the BT: "FollowPath" '
+                    '(Regulated Pure Pursuit) or "FollowPathGraceful" '
+                    '(Graceful Controller). See docs/controllers.md',
+    )
+
     declare_autostart_cmd = DeclareLaunchArgument(
         'autostart',
         default_value='true',
@@ -248,7 +265,10 @@ def generate_launch_description():
                 output='screen',
                 respawn=use_respawn,
                 respawn_delay=2.0,
-                parameters=[configured_params, {'default_nav_to_pose_bt_xml': bt_file}],
+                parameters=[
+                    configured_params,
+                    {'default_nav_to_pose_bt_xml': bt_file_with_controller},
+                ],
                 arguments=['--ros-args', '--log-level', log_level],
             ),
             Node(
@@ -344,6 +364,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_bt_file_cmd)
+    ld.add_action(declare_controller_cmd)
     ld.add_action(declare_autostart_cmd)
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_use_rviz_cmd)
