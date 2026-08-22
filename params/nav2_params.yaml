@@ -23,8 +23,11 @@ bt_navigator:
     # They can be set here or via a RewrittenYaml remap from a parent launch file to Nav2.
 
     # plugin_lib_names is used to add custom BT plugins to the executor (vector of strings).
-    # Built-in plugins are added automatically
-    # plugin_lib_names: []
+    # Built-in plugins are added automatically.
+    # IsPathEndNearGoal (this package, issue #28) fails the navigation when
+    # NavFn's tolerance search replaced the goal by a point the robot can
+    # reach - which, for a cube stuck in the inscribed band, is its own pose.
+    plugin_lib_names: ["toio_navigation_is_path_end_near_goal_bt_node"]
 
     error_code_names:
       - compute_path_error_code
