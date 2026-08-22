@@ -112,10 +112,26 @@ exist only in the static costmap and the controller simply follows the plan.
 - **zigzag maps** (`toio_a4_map_zigzag`, `toio_a3_map_zigzag`): wide, gently
   weaving channels. The default `FollowPath` (RPP) follows them to the far
   corner cleanly, with the footprint clearing the walls (~3-5 mm final).
-- **spiral maps** (`toio_a4_map_spiral`, `toio_a3_map_spiral`): the centre is
-  reached cleanly with a loose / velocity-scaled lookahead. With the current
-  fixed 0.1 m lookahead plus `use_rotate_to_heading`, RPP rotates in place on
-  the continuously-curving inner turns and the progress checker aborts before
-  the centre (A4) or the footprint grazes the wall through the tight centre
-  curl (A3). Until this is resolved, drive the spiral maps with a
-  loose-lookahead RPP profile. See #24.
+- **spiral maps** (`toio_a4_map_spiral`, `toio_a3_map_spiral`): redrawn in
+  #24 with 9 cm corridors (6 cm passable after inflation) and a 3 cm inner
+  wall, because the earlier 5.5 cm corridors left 2.5 cm for a 3.2 cm cube.
+  A4 is a single hook (top corridor → right corridor → pocket), A3 a full
+  spiral. **Neither controller drives the A4 hook on hardware** (see
+  "Spiral maps on hardware" below); the maps are kept as the tight-turn test
+  case.
+
+## Spiral maps on hardware
+
+Real cube, A4 mat, SmacPlanner2D, start (0.0475,-0.0475) → pocket
+(0.1025,-0.1625):
+
+| controller | result |
+|:---|:---|
+| RPP, `lookahead_dist: 0.1` | drives **through the inner wall** at x ≈ 0.13: pure pursuit picks the first path point at a straight-line distance ≥ 0.1 m, and once the wall tip is within 0.1 m that point lies on the next leg, behind the wall. `use_collision_detection: false` lets it happen |
+| RPP, `lookahead_dist: 0.05` | goes around the tip but cuts into its inscribed band; the replan fails with `Start occupied` |
+| Graceful | 0.03 m/s along the corridor (the control law never reaches cruise speed), then refuses the turn: `Collision detected in trajectory` → `Controller patience exceeded`. Never touches a wall |
+
+The A4 mat cannot give a U-turn more room: 18 + 6 + 14 cells already fill
+its 40 rows. What is left is on the controller side: a path-distance (not
+straight-line) carrot, or `use_collision_detection: true` so RPP at least
+stops instead of crossing a virtual wall. Tracked in #24.
