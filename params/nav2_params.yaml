@@ -277,9 +277,38 @@ map_saver:
 planner_server:
   ros__parameters:
     expected_planner_frequency: 20.0
-    planner_plugins: ["GridBased"]
+    # GridBased is SmacPlanner2D (issue #31). NavFn's path tracing is capped
+    # at 4 x (map width in cells) steps - about 0.6m on the 60-cell A4 map -
+    # so any route longer than about twice the mat width came back truncated,
+    # and its 0.05m tolerance then passed the truncated end as the goal (the
+    # spiral centre was never actually planned to). Smac has no such cap:
+    # it plans the full 0.63m spiral route. NavFn stays registered for
+    # comparison; select it with the planner_selector topic.
+    planner_plugins: ["GridBased", "NavFn"]
     costmap_update_timeout: 1.0
     GridBased:
+      plugin: "nav2_smac_planner::SmacPlanner2D"
+      # Same meaning as NavFn's tolerance below: a goal blocked by a peer
+      # robot still gets a plan to the nearest reachable point within it
+      # (checked with a fake peer on the goal: the path ends 3cm above it).
+      # Note that the BT's IsPathEndNearGoal only accepts a path end within
+      # 0.01m of the goal, so such a substitute is refused before driving.
+      tolerance: 0.05
+      # 5mm cells on a 0.3 x 0.2m map: nothing to downsample
+      downsample_costmap: false
+      allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 2.0
+      # Keeps the path away from the inflated walls as NavFn did
+      cost_travel_multiplier: 2.0
+      use_final_approach_orientation: false
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.2
+        tolerance: 1.0e-10
+    NavFn:
       plugin: "nav2_navfn_planner::NavfnPlanner"
       # Matched to the play-mat scale: large enough for the tolerance search
       # to escape a peer robot blocking the goal (peer rectangle half-diagonal

@@ -46,9 +46,9 @@ by a peer (NavFn substitutes within 0.05 m).
 
 ## What the check revealed
 
-With the check in place the A4 spiral centre goal fails from the start:
-NavFn's path tracing is capped at 4 x (map width in cells) steps, about
-0.6 m on the 60-cell-wide A4 map, and the spiral route is 0.63 m. The path
-always stops 4-5 cm short of the centre and the tolerance used to hide it.
-`nav2_smac_planner::SmacPlanner2D` as `GridBased` plans the full 0.63 m
-route (checked on hardware); see #31.
+With the check in place the A4 spiral centre goal failed from the start
+while `GridBased` was NavFn: its path tracing is capped at 4 x (map width in
+cells) steps, about 0.6 m on the 60-cell-wide A4 map, and the spiral route
+is 0.63 m. The path always stopped 4-5 cm short of the centre and the
+tolerance used to hide it. `GridBased` is SmacPlanner2D since #31, which
+plans the full route; see [planners.md](planners.md).

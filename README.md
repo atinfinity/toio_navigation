@@ -58,10 +58,11 @@ If you use Gazebo simulator, please add `use_sim_time:=True`.
 | `toio_a4_map.yaml`, `toio_a3_map.yaml` | Empty A4 / A3 play mat |
 | `toio_a4_map_with_obstacle.yaml`, `toio_a3_map_with_obstacle.yaml` | Play mat with wall obstacles |
 | `toio_a4_map_zigzag.yaml`, `toio_a3_map_zigzag.yaml` | A wide, gently weaving channel that snakes from the top-left to the bottom-right corner. The bends have a large radius (no sharp reversals), so the cube follows the S-curve without cutting into the walls |
-| `toio_a4_map_spiral.yaml`, `toio_a3_map_spiral.yaml` | A wall winding inward to a center room; set a goal in the center so the cube spirals in from the outside. Reachable to the centre with the loose-lookahead RPP; the merged RPP stalls on the tight inner turns (see issue #24) |
+| `toio_a4_map_spiral.yaml`, `toio_a3_map_spiral.yaml` | A wall winding inward to a center room; set a goal in the center so the cube spirals in from the outside. The planner reaches the centre (SmacPlanner2D, see [docs/planners.md](docs/planners.md)); on hardware the cube cuts the first tight turn into the wall with both controllers (see issue #24) |
 
 ## Documents
 
 - [Multi-robot navigation](docs/multi_robot.md): launch one nav2 stack per robot and avoid the peer robots
 - [Controllers](docs/controllers.md): Regulated Pure Pursuit (default) vs. Graceful Controller, and how to switch
+- [Planners](docs/planners.md): SmacPlanner2D (default) and why NavFn is not
 - [Behavior tree](docs/behavior_tree.md): what differs from the nav2 default tree, and the `IsPathEndNearGoal` check
