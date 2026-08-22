@@ -66,7 +66,18 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.005
+      # What RPP can actually hit on this cube (issue #29). It arrives 5-13mm
+      # off the goal (lateral error is not corrected at the end of a path,
+      # the Position ID is read to about 1.4mm, and 100ms of BLE latency
+      # is 1cm at 0.1 m/s). With a 5mm band it then rotated in place towards
+      # a carrot a centimetre away, whose bearing flips with the sensor
+      # noise, and every in-place turn moved the reading by a few mm, so a
+      # goal next to a wall took 7-60s to latch. 10mm is the compromise
+      # measured on hardware: 15mm removed most of the hunting but let every
+      # goal end 11-16mm off (the checker latches on entry and RPP does not
+      # pull in further), 10mm keeps the open-mat error near 1cm. The yaw
+      # band below still decides the heading.
+      xy_goal_tolerance: 0.01
       # The cube overshoots an in-place turn by about 9 deg after the stop
       # command at 2.0 rad/s (90-110 ms BLE latency, measured), so a 0.1 rad
       # band is passed through and the final heading ends up 8 deg off.
@@ -97,8 +108,8 @@ controller_server:
       # the waypoint instead of overshooting it. At the old value 0.1
       # (== desired_linear_vel) approach deceleration was fully masked: the
       # cube reached the goal at full 0.1 m/s and, since one 20 Hz control step
-      # moves 0.1/20 = 5 mm == xy_goal_tolerance, it stepped past the 5 mm goal
-      # band in a single cycle. With allow_reversing: false it then curved back
+      # moves 0.1/20 = 5 mm, it stepped past the then 5 mm goal band in a
+      # single cycle. With allow_reversing: false it then curved back
       # around and passed through again, hunting across the waypoint several
       # times before general_goal_checker latched. 0.03 m/s is 1.5 mm/step,
       # well inside the tolerance, so the cube settles in one pass. It cannot
