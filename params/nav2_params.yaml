@@ -64,7 +64,12 @@ controller_server:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.005
-      yaw_goal_tolerance: 0.1
+      # The cube overshoots an in-place turn by about 9 deg after the stop
+      # command at 2.0 rad/s (90-110 ms BLE latency, measured), so a 0.1 rad
+      # band is passed through and the final heading ends up 8 deg off.
+      # 0.15 rad (8.6 deg) lets the checker succeed early enough that the
+      # overshoot lands the cube on the heading: 3-6 deg measured.
+      yaw_goal_tolerance: 0.15
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       desired_linear_vel: 0.1
@@ -77,7 +82,13 @@ controller_server:
       min_lookahead_dist: 0.05
       max_lookahead_dist: 0.15
       lookahead_time: 1.0
-      rotate_to_heading_angular_vel: 5.0
+      # In-place turn speed. The cube keeps turning for 90-110 ms after the
+      # stop command (BLE), which at 5.0 rad/s is a 28 deg overshoot and left
+      # the final heading 20-26 deg off the goal. At 2.0 rad/s the overshoot
+      # is 9 deg and the heading error 3-6 deg (A4 mat measurement); the
+      # route time is unchanged. The floor is about 1.7 rad/s, below which
+      # the wheels (0.0225 m/s minimum) do not move.
+      rotate_to_heading_angular_vel: 2.0
       use_velocity_scaled_lookahead_dist: false
       # Crawl over the last approach_velocity_scaling_dist so the cube lands on
       # the waypoint instead of overshooting it. At the old value 0.1
@@ -149,8 +160,9 @@ controller_server:
       v_angular_max: 5.0
       # An in-place turn below about 1.7 rad/s (0.0225 m/s per wheel) does not
       # move the cube; the nav2 default of 0.25 left the initial rotation
-      # stalled on hardware. 2.5 rad/s is 0.033 m/s per wheel.
-      v_angular_min_in_place: 2.5
+      # stalled on hardware. 2.0 rad/s (0.027 m/s per wheel) matches RPP's
+      # rotate_to_heading_angular_vel, see there for the overshoot numbers.
+      v_angular_min_in_place: 2.0
       slowdown_radius: 0.05
 
 
