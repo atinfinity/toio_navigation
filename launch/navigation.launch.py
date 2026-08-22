@@ -265,7 +265,10 @@ def generate_launch_description():
                 output='screen',
                 respawn=use_respawn,
                 respawn_delay=2.0,
-                parameters=[configured_params, {'default_nav_to_pose_bt_xml': bt_file_with_controller}],
+                parameters=[
+                    configured_params,
+                    {'default_nav_to_pose_bt_xml': bt_file_with_controller},
+                ],
                 arguments=['--ros-args', '--log-level', log_level],
             ),
             Node(
