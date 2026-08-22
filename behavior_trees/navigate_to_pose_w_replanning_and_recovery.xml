@@ -18,6 +18,17 @@
         <RateController hz="1.0">
           <Sequence>
             <ComputePathToPose goal="{goal}" path="{path}" planner_id="{selected_planner}" error_code_id="{compute_path_error_code}"/>
+            <!--
+              NavFn plans to a substitute point within its 0.05m tolerance
+              when the goal cell is unreachable. From inside the inflation
+              layer's inscribed band that substitute is the robot's own pose,
+              and FollowPath would report success on the spot (issue #28).
+              Fail here instead so the recovery subtree and the retry counter
+              see the stall. The tolerance is the distance the path end may
+              sit from the goal; 0.01m keeps a goal blocked by a peer from
+              being silently replaced as well.
+            -->
+            <IsPathEndNearGoal path="{path}" goal="{goal}" tolerance="0.01"/>
             <SmoothPath unsmoothed_path="{path}" smoothed_path="{smooth_path}" smoother_id="{selected_smoother}" error_code_id="{smoother_error_code}"/>
           </Sequence>
         </RateController>
