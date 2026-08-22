@@ -18,7 +18,7 @@ from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, SetEnvironmentVariable
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.actions import PushRosNamespace
@@ -44,6 +44,12 @@ def generate_launch_description():
     params_file = LaunchConfiguration('params_file')
     bt_file = LaunchConfiguration('bt_file')
     controller = LaunchConfiguration('controller')
+    use_velocity_smoother = LaunchConfiguration('use_velocity_smoother')
+    # The controller publishes to cmd_vel_nav when the smoother is in the
+    # pipeline, or straight to cmd_vel when it is not.
+    controller_cmd_vel_topic = PythonExpression(
+        ["'cmd_vel_nav' if '", use_velocity_smoother,
+         "'.lower() in ('true', '1') else 'cmd_vel'"])
     use_respawn = LaunchConfiguration('use_respawn')
     use_rviz = LaunchConfiguration('use_rviz')
     rviz_config_file = LaunchConfiguration('rviz_config')
@@ -56,19 +62,23 @@ def generate_launch_description():
     # existing observation source, docking_server, route_server without a
     # graph) are not launched: with two robots on one machine every extra
     # server costs a process per robot.
-    # velocity_smoother is launched (open-loop) now that /odom exists; it
-    # smooths the controller cmd_vel before the cube (controller -> cmd_vel_nav
-    # -> velocity_smoother -> cmd_vel).
-    lifecycle_nodes = [
+    # velocity_smoother (open-loop) is launched when use_velocity_smoother is
+    # true (default) now that /odom exists; it smooths the controller cmd_vel
+    # before the cube (controller -> cmd_vel_nav -> velocity_smoother ->
+    # cmd_vel). Set use_velocity_smoother:=False for the plain
+    # controller -> cmd_vel path (e.g. to A/B compare on hardware).
+    lifecycle_nodes_base = [
         'map_server',
         'controller_server',
-        'velocity_smoother',
         'smoother_server',
         'planner_server',
         'behavior_server',
         'bt_navigator',
         'waypoint_follower',
     ]
+    # velocity_smoother goes right after controller_server when enabled.
+    lifecycle_nodes_with_smoother = (
+        lifecycle_nodes_base[:2] + ['velocity_smoother'] + lifecycle_nodes_base[2:])
 
     # The robots are separated by the shared /tf with frame_prefix
     # (e.g. map -> toio1/center) following the convention of toio_ros2 and
@@ -186,6 +196,14 @@ def generate_launch_description():
                     '(Graceful Controller). See docs/controllers.md',
     )
 
+    declare_use_velocity_smoother_cmd = DeclareLaunchArgument(
+        'use_velocity_smoother',
+        default_value='True',
+        description='Run velocity_smoother (open-loop) between the controller '
+                    'and the cube. False sends the controller cmd_vel straight '
+                    'to the cube (for A/B comparison). See issue #39',
+    )
+
     declare_autostart_cmd = DeclareLaunchArgument(
         'autostart',
         default_value='true',
@@ -230,9 +248,10 @@ def generate_launch_description():
                 respawn=use_respawn,
                 respawn_delay=2.0,
                 parameters=[configured_params],
-                # Route the controller output through velocity_smoother, which
-                # republishes it on cmd_vel for the cube.
-                remappings=[('cmd_vel', 'cmd_vel_nav')],
+                # Route the controller output through velocity_smoother (which
+                # republishes it on cmd_vel), or straight to cmd_vel when the
+                # smoother is disabled.
+                remappings=[('cmd_vel', controller_cmd_vel_topic)],
                 arguments=['--ros-args', '--log-level', log_level],
             ),
             Node(
@@ -240,6 +259,7 @@ def generate_launch_description():
                 executable='velocity_smoother',
                 name='velocity_smoother',
                 output='screen',
+                condition=IfCondition(use_velocity_smoother),
                 respawn=use_respawn,
                 respawn_delay=2.0,
                 parameters=[configured_params],
@@ -300,13 +320,28 @@ def generate_launch_description():
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
             ),
+            # Two lifecycle managers, selected by use_velocity_smoother, so the
+            # managed node list matches which nodes are actually launched (a
+            # manager that waits for a node that never comes up would stall).
             Node(
                 package='nav2_lifecycle_manager',
                 executable='lifecycle_manager',
                 name='lifecycle_manager_navigation',
                 output='screen',
+                condition=IfCondition(use_velocity_smoother),
                 arguments=['--ros-args', '--log-level', log_level],
-                parameters=[{'autostart': autostart}, {'node_names': lifecycle_nodes}],
+                parameters=[{'autostart': autostart},
+                            {'node_names': lifecycle_nodes_with_smoother}],
+            ),
+            Node(
+                package='nav2_lifecycle_manager',
+                executable='lifecycle_manager',
+                name='lifecycle_manager_navigation',
+                output='screen',
+                condition=UnlessCondition(use_velocity_smoother),
+                arguments=['--ros-args', '--log-level', log_level],
+                parameters=[{'autostart': autostart},
+                            {'node_names': lifecycle_nodes_base}],
             ),
             Node(
                 package='toio_navigation',
@@ -384,6 +419,7 @@ def generate_launch_description():
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_bt_file_cmd)
     ld.add_action(declare_controller_cmd)
+    ld.add_action(declare_use_velocity_smoother_cmd)
     ld.add_action(declare_autostart_cmd)
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_use_rviz_cmd)
