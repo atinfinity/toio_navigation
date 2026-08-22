@@ -57,8 +57,8 @@ If you use Gazebo simulator, please add `use_sim_time:=True`.
 | --- | --- |
 | `toio_a4_map.yaml`, `toio_a3_map.yaml` | Empty A4 / A3 play mat |
 | `toio_a4_map_with_obstacle.yaml`, `toio_a3_map_with_obstacle.yaml` | Play mat with wall obstacles |
-| `toio_a4_map_zigzag.yaml`, `toio_a3_map_zigzag.yaml` | A diagonal channel from the top-left to the bottom-right corner (120mm wide on A4, 130mm on A3) with short wall stubs alternating from both sides every 60-65mm, so the robot has to weave constantly while heading for the far corner |
-| `toio_a4_map_spiral.yaml`, `toio_a3_map_spiral.yaml` | A single wall winding inward; set a goal in the center room so the robot drives a spiral from the outer corridor |
+| `toio_a4_map_zigzag.yaml`, `toio_a3_map_zigzag.yaml` | A wide, gently weaving channel that snakes from the top-left to the bottom-right corner. The bends have a large radius (no sharp reversals), so the cube follows the S-curve without cutting into the walls |
+| `toio_a4_map_spiral.yaml`, `toio_a3_map_spiral.yaml` | A wall winding inward to a center room; set a goal in the center so the cube spirals in from the outside. Reachable to the centre with the loose-lookahead RPP; the merged RPP stalls on the tight inner turns (see issue #24) |
 
 ## Documents
 
