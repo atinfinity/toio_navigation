@@ -41,7 +41,12 @@ controller_server:
     failure_tolerance: 0.3
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
-    controller_plugins: ["FollowPath"]
+    # FollowPath (RPP) is the default. FollowPathGraceful is registered next
+    # to it so the two can be compared on the same route: pick one with the
+    # 'controller' launch argument, or switch at runtime through the BT's
+    # ControllerSelector (topic 'controller_selector', transient local).
+    # See docs/controllers.md.
+    controller_plugins: ["FollowPath", "FollowPathGraceful"]
     use_realtime_priority: false
 
     # Progress checker parameters
@@ -63,12 +68,17 @@ controller_server:
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       desired_linear_vel: 0.1
+      # A fixed lookahead. With velocity scaling the lookahead was
+      # desired_linear_vel * lookahead_time = 0.1 * 5.0 = 0.5m, always
+      # clipped to max_lookahead_dist (0.15m) - half of the A4 mat - so the
+      # cube cut every corner of the planned path. 0.1m is one lookahead of
+      # ~3 cube lengths, which still smooths the 5mm-grid path.
       lookahead_dist: 0.1
       min_lookahead_dist: 0.05
       max_lookahead_dist: 0.15
-      lookahead_time: 5.0
+      lookahead_time: 1.0
       rotate_to_heading_angular_vel: 5.0
-      use_velocity_scaled_lookahead_dist: true
+      use_velocity_scaled_lookahead_dist: false
       # Crawl over the last approach_velocity_scaling_dist so the cube lands on
       # the waypoint instead of overshooting it. At the old value 0.1
       # (== desired_linear_vel) approach deceleration was fully masked: the
@@ -100,6 +110,37 @@ controller_server:
       max_angular_accel: 40.0
       min_distance_to_obstacle: 0.0
       stateful: true
+    # Graceful Controller: a smooth pose-following control law (Park &
+    # Kuipers) that converges onto the goal pose instead of tracking a carrot,
+    # which is expected to land the cube on the 5mm goal band more cleanly
+    # than RPP. Candidate for comparison on hardware; the speeds match the
+    # RPP configuration above.
+    FollowPathGraceful:
+      plugin: "nav2_graceful_controller::GracefulController"
+      transform_tolerance: 0.1
+      # Distance along the path of the pose the controller steers to; the
+      # same 0.1m as the RPP lookahead.
+      motion_target_dist: 0.1
+      # Rotate in place first when the path heading differs by more than
+      # initial_rotation_min_angle (same threshold as RPP's
+      # rotate_to_heading_min_angle).
+      initial_rotation: true
+      initial_rotation_min_angle: 0.5
+      # Rotate in place to the final yaw once the position is reached.
+      final_rotation: true
+      rotation_scaling_factor: 0.5
+      allow_backward: false
+      # Control law gains (nav2 defaults).
+      k_phi: 3.0
+      k_delta: 2.0
+      beta: 0.4
+      lambda: 2.0
+      # Same linear limits as RPP: cruise 0.1 m/s, 0.02 m/s (1mm per 20Hz
+      # step) on the final approach, and slow down over the last 0.05m.
+      v_linear_min: 0.02
+      v_linear_max: 0.1
+      v_angular_max: 5.0
+      slowdown_radius: 0.05
 
 
 local_costmap:

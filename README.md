@@ -54,3 +54,4 @@ If you use Gazebo simulator, please add `use_sim_time:=True`.
 ## Documents
 
 - [Multi-robot navigation](docs/multi_robot.md): launch one nav2 stack per robot and avoid the peer robots
+- [Controllers](docs/controllers.md): Regulated Pure Pursuit (default) vs. Graceful Controller, and how to switch

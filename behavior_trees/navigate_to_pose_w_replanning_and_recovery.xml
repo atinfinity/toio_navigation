@@ -4,11 +4,15 @@
   recovery actions specific to planning / control as well as general system issues.
   This will be continuous if a kinematically valid planner is selected.
 -->
+<!--
+  @default_controller@ is replaced by navigation.launch.py with the
+  'controller' launch argument (FollowPath or FollowPathGraceful).
+-->
 <root BTCPP_format="4" main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
     <RecoveryNode number_of_retries="6" name="NavigateRecovery">
       <PipelineSequence name="NavigateWithReplanning">
-        <ControllerSelector selected_controller="{selected_controller}" default_controller="FollowPath" topic_name="controller_selector"/>
+        <ControllerSelector selected_controller="{selected_controller}" default_controller="@default_controller@" topic_name="controller_selector"/>
         <SmootherSelector selected_smoother="{selected_smoother}" default_smoother="savitzky_golay_smoother" topic_name="smoother_selector"/>
         <PlannerSelector selected_planner="{selected_planner}" default_planner="GridBased" topic_name="planner_selector"/>
         <RateController hz="1.0">
