@@ -121,6 +121,8 @@ Visualization Manager:
           Value: false
         map:
           Value: false
+        odom:
+          Value: false
         rear_caster_link:
           Value: false
         toio:
