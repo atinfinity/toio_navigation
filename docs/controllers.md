@@ -132,7 +132,7 @@ Real cube, A4 mat, SmacPlanner2D, start (0.0475,-0.0475) → pocket
 | RPP, `use_collision_detection: true` | stops in the corridor before the turn (x = 0.12) and aborts: honest, but no further |
 | Graceful, nav2 defaults (`beta: 0.4`, real footprint) | 0.03 m/s along the corridor (the control law never reaches cruise speed), then refuses the turn: `Collision detected in trajectory` → `Controller patience exceeded`. Never touches a wall |
 | Graceful, `beta: 0.002`, 1.6 cm local footprint, `v_linear_min: 0.03` | reaches the pocket in 4 of 5 runs (8-37 s, 6 mm final); the failed run parks at the wall tip: at 0.03 m/s the inner wheel of the turn falls into the motor dead zone |
-| **Graceful, `beta: 0.002`, 1.6 cm local footprint, `v_linear_min: 0.05`** (the committed values) | **reaches the pocket in 4 of 5 runs**: 8.1-13.1 s, 6-7 mm final error, min clearance −1.0 … +0.4 mm; one run parked at the tip without touching |
+| **Graceful, `beta: 0.002`, 1.6 cm local footprint, `v_linear_min: 0.05`** (the committed values) | **reaches the pocket in 4 of 5 runs** with the 5 mm goal tolerance (8.1-13.1 s, one run parked at the tip without touching), and **12 of 12** with the 10 mm tolerance of #29: 7.6-8.5 s, 5-11 mm final error, min clearance −1.0 … +3.9 mm |
 | Graceful, `beta: 0.05`, 1.6 cm local footprint | stalls at the tip |
 | Graceful, `beta: 0.002`, real footprint | refuses the turn as with the defaults |
 
@@ -150,9 +150,9 @@ body; RPP does not use the check and is unaffected, same route time).
 The price is speed on open maps: with these values Graceful needs 45 s for
 the 5-leg route above (33 s before) and 14.5 s for the zigzag
 `navigate_through_poses` (4.8 s before), though it still lands within 5 mm /
-5°. It is also not fully reliable at the tip (one parked run in five), and
-the final heading hunts for a while at the goal as in #29. RPP stays the
-default; select Graceful for maps with tight turns.
+5°. With the 10 mm goal tolerance (#29) the hook run is 12 of 12 in about
+8 s and the heading no longer hunts at the goal. RPP stays the default;
+select Graceful for maps with tight turns.
 
 RPP itself cannot do this U-turn: its carrot is picked by straight-line
 distance and jumps behind the wall once the tip is within the lookahead.
