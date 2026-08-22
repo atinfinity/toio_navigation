@@ -175,6 +175,10 @@ Visualization Manager:
           Value: false
         map:
           Value: false
+        toio1/odom:
+          Value: false
+        toio2/odom:
+          Value: false
         rear_caster_link:
           Value: false
         toio:
