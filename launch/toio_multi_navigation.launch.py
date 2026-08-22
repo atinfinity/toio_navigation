@@ -70,6 +70,8 @@ def navigation_robots(context):
                     'use_rviz': context.launch_configurations['use_rviz'],
                     'controller':
                         context.launch_configurations['controller'],
+                    'use_velocity_smoother':
+                        context.launch_configurations['use_velocity_smoother'],
                     'rviz_config': rviz_config_file,
                 }.items()),
         ]))
@@ -118,6 +120,15 @@ def generate_launch_description():
                     'or "FollowPathGraceful" (see navigation.launch.py)',
     )
 
+    declare_use_velocity_smoother_cmd = DeclareLaunchArgument(
+        'use_velocity_smoother',
+        default_value='True',
+        description='Run velocity_smoother for every robot. False sends the '
+                    'controller cmd_vel straight to the cube. One extra node '
+                    'per robot; set False to save processes in large fleets '
+                    '(see navigation.launch.py)',
+    )
+
     ld = LaunchDescription()
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
@@ -125,6 +136,7 @@ def generate_launch_description():
     ld.add_action(declare_robots_cmd)
     ld.add_action(declare_peer_footprint_size_cmd)
     ld.add_action(declare_controller_cmd)
+    ld.add_action(declare_use_velocity_smoother_cmd)
 
     ld.add_action(OpaqueFunction(function=navigation_robots))
     return ld
