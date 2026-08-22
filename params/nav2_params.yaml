@@ -149,16 +149,25 @@ controller_server:
       prefer_final_rotation: true
       rotation_scaling_factor: 0.5
       allow_backward: false
-      # Control law gains (nav2 defaults).
+      # Control law gains. k_phi / k_delta / lambda are the nav2 defaults.
+      # beta scales the curvature slowdown v = v_max / (1 + beta * |k|^lambda),
+      # and the Park-Kuipers curvature grows as 1 / (distance to the target):
+      # with targets 0.05-0.1m ahead |k| is 10-20 /m, so the default 0.4
+      # pinned v at v_linear_min (0.03 m/s) the whole way and the cube never
+      # made it round the spiral's U-turn (issue #24). 0.002 keeps the
+      # slowdown below 50% up to |k| = 15 /m; 0.05 was still too slow to
+      # round the turn.
       k_phi: 3.0
       k_delta: 2.0
-      beta: 0.4
+      beta: 0.002
       lambda: 2.0
-      # Same linear limits as RPP: cruise 0.1 m/s, 0.03 m/s (1.5mm per 20Hz
-      # step, and the slowest the cube's motor runs, see
-      # min_approach_linear_velocity above) on the final approach, slowing
-      # down over the last 0.05m.
-      v_linear_min: 0.03
+      # Cruise 0.1 m/s as RPP. The floor is 0.05 rather than RPP's 0.03:
+      # Graceful turns while driving, and at 0.03 m/s the inner wheel
+      # (v - omega * 0.0133) drops below the motor's 0.0225 m/s dead zone
+      # on the spiral's U-turn, leaving the cube parked at the wall tip
+      # (issue #24). 0.05 keeps both wheels moving up to 2 rad/s and is
+      # still 2.5mm per 20Hz step on the final approach.
+      v_linear_min: 0.05
       v_linear_max: 0.1
       v_angular_max: 5.0
       # An in-place turn below about 1.7 rad/s (0.0225 m/s per wheel) does not
@@ -197,7 +206,17 @@ local_costmap:
       # -0.0197..+0.0121, y spans +-0.0159. The previous 0.02x0.02m
       # polygon underestimated the cube by 40% (the peer robots already
       # use the real size via footprint_length/width: 0.032).
-      footprint: "[ [0.0121, 0.0159], [0.0121, -0.0159], [-0.0197, -0.0159], [-0.0197, 0.0159] ]"
+      # Not the real cube body (that stays on the global costmap below, which
+      # the planner uses): the local costmap is only read by the controllers'
+      # own collision checks, and its static walls are virtual. Graceful
+      # checks its simulated trajectory with this footprint against cells the
+      # inflation layer has already grown by one footprint (the inscribed
+      # band), so with the real body it refused every turn in a 6cm-wide
+      # passable corridor ("Collision detected in trajectory"). A 1.6cm
+      # square lets it drive the A4 spiral hook (3/3 runs, no wall crossing,
+      # issue #24); RPP, which does not use the check, is unaffected (same
+      # route time). The inflation layer of this costmap shrinks with it.
+      footprint: "[ [0.008, 0.008], [0.008, -0.008], [-0.008, -0.008], [-0.008, 0.008] ]"
       # The nav2 default padding (0.01 per side = 2/3 of the cube width)
       # is oversized for the play-mat scale.
       footprint_padding: 0.005
