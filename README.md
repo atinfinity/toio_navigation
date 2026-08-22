@@ -51,6 +51,15 @@ ros2 launch toio_navigation navigation.launch.py map:=$HOME/dev_ws/src/toio_navi
 
 If you use Gazebo simulator, please add `use_sim_time:=True`.
 
+### Available maps
+
+| Map | Description |
+| --- | --- |
+| `toio_a4_map.yaml`, `toio_a3_map.yaml` | Empty A4 / A3 play mat |
+| `toio_a4_map_with_obstacle.yaml`, `toio_a3_map_with_obstacle.yaml` | Play mat with wall obstacles |
+| `toio_a4_map_zigzag.yaml`, `toio_a3_map_zigzag.yaml` | Walls anchored alternately on the left and right, so the robot has to zigzag from the top to the bottom of the mat |
+| `toio_a4_map_spiral.yaml`, `toio_a3_map_spiral.yaml` | A single wall winding inward; set a goal in the center room so the robot drives a spiral from the outer corridor |
+
 ## Documents
 
 - [Multi-robot navigation](docs/multi_robot.md): launch one nav2 stack per robot and avoid the peer robots
