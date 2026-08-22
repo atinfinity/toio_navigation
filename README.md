@@ -58,7 +58,7 @@ If you use Gazebo simulator, please add `use_sim_time:=True`.
 | `toio_a4_map.yaml`, `toio_a3_map.yaml` | Empty A4 / A3 play mat |
 | `toio_a4_map_with_obstacle.yaml`, `toio_a3_map_with_obstacle.yaml` | Play mat with wall obstacles |
 | `toio_a4_map_zigzag.yaml`, `toio_a3_map_zigzag.yaml` | A wide, gently weaving channel that snakes from the top-left to the bottom-right corner. The bends have a large radius (no sharp reversals), so the cube follows the S-curve without cutting into the walls |
-| `toio_a4_map_spiral.yaml`, `toio_a3_map_spiral.yaml` | Inner walls with 9 cm corridors (6 cm passable after inflation): A4 is a hook (start (0.0475,-0.0475), goal in the pocket (0.1025,-0.1625)), A3 a full spiral (goal (0.2075,-0.1575)). The planner reaches the goal (SmacPlanner2D); on hardware neither controller manages the U-turn, see [docs/controllers.md](docs/controllers.md#spiral-maps-on-hardware) and issue #24 |
+| `toio_a4_map_spiral.yaml`, `toio_a3_map_spiral.yaml` | Inner walls with 9 cm corridors (6 cm passable after inflation): A4 is a hook (start (0.0475,-0.0475), goal in the pocket (0.1025,-0.1625)), A3 a full spiral (goal (0.2075,-0.1575)). Drive them with `controller:=FollowPathGraceful`: on hardware Graceful reaches the pocket and RPP cuts through the virtual wall at the U-turn, see [docs/controllers.md](docs/controllers.md#spiral-maps-on-hardware) and issue #24 |
 
 ## Documents
 

@@ -116,9 +116,9 @@ exist only in the static costmap and the controller simply follows the plan.
   #24 with 9 cm corridors (6 cm passable after inflation) and a 3 cm inner
   wall, because the earlier 5.5 cm corridors left 2.5 cm for a 3.2 cm cube.
   A4 is a single hook (top corridor → right corridor → pocket), A3 a full
-  spiral. **Neither controller drives the A4 hook on hardware** (see
-  "Spiral maps on hardware" below); the maps are kept as the tight-turn test
-  case.
+  spiral. **`FollowPathGraceful` drives the A4 hook to the pocket; RPP does
+  not** (see "Spiral maps on hardware" below), so select Graceful for these
+  maps: `controller:=FollowPathGraceful`.
 
 ## Spiral maps on hardware
 
@@ -129,9 +129,32 @@ Real cube, A4 mat, SmacPlanner2D, start (0.0475,-0.0475) → pocket
 |:---|:---|
 | RPP, `lookahead_dist: 0.1` | drives **through the inner wall** at x ≈ 0.13: pure pursuit picks the first path point at a straight-line distance ≥ 0.1 m, and once the wall tip is within 0.1 m that point lies on the next leg, behind the wall. `use_collision_detection: false` lets it happen |
 | RPP, `lookahead_dist: 0.05` | goes around the tip but cuts into its inscribed band; the replan fails with `Start occupied` |
-| Graceful | 0.03 m/s along the corridor (the control law never reaches cruise speed), then refuses the turn: `Collision detected in trajectory` → `Controller patience exceeded`. Never touches a wall |
+| RPP, `use_collision_detection: true` | stops in the corridor before the turn (x = 0.12) and aborts: honest, but no further |
+| Graceful, nav2 defaults (`beta: 0.4`, real footprint) | 0.03 m/s along the corridor (the control law never reaches cruise speed), then refuses the turn: `Collision detected in trajectory` → `Controller patience exceeded`. Never touches a wall |
+| Graceful, `beta: 0.002`, 1.6 cm local footprint, `v_linear_min: 0.03` | reaches the pocket in 4 of 5 runs (8-37 s, 6 mm final); the failed run parks at the wall tip: at 0.03 m/s the inner wheel of the turn falls into the motor dead zone |
+| **Graceful, `beta: 0.002`, 1.6 cm local footprint, `v_linear_min: 0.05`** (the committed values) | **reaches the pocket in 4 of 5 runs**: 8.1-13.1 s, 6-7 mm final error, min clearance −1.0 … +0.4 mm; one run parked at the tip without touching |
+| Graceful, `beta: 0.05`, 1.6 cm local footprint | stalls at the tip |
+| Graceful, `beta: 0.002`, real footprint | refuses the turn as with the defaults |
 
-The A4 mat cannot give a U-turn more room: 18 + 6 + 14 cells already fill
-its 40 rows. What is left is on the controller side: a path-distance (not
-straight-line) carrot, or `use_collision_detection: true` so RPP at least
-stops instead of crossing a virtual wall. Tracked in #24.
+Three things made Graceful work, and all are needed (`v_linear_min` is
+explained in the params file). `beta` is the
+curvature slowdown: the control law's curvature grows as 1 / (distance to
+the target), so with targets 5-10 cm ahead the default 0.4 held the cube at
+`v_linear_min` and it never rounded the turn. The local costmap footprint is
+what Graceful checks its simulated trajectory with, against cells the
+inflation layer has already grown by one footprint; with the real body every
+arc in a 6 cm-wide passable corridor "collides", so the local costmap uses a
+1.6 cm square (the global costmap, which the planner uses, keeps the real
+body; RPP does not use the check and is unaffected, same route time).
+
+The price is speed on open maps: with these values Graceful needs 45 s for
+the 5-leg route above (33 s before) and 14.5 s for the zigzag
+`navigate_through_poses` (4.8 s before), though it still lands within 5 mm /
+5°. It is also not fully reliable at the tip (one parked run in five), and
+the final heading hunts for a while at the goal as in #29. RPP stays the
+default; select Graceful for maps with tight turns.
+
+RPP itself cannot do this U-turn: its carrot is picked by straight-line
+distance and jumps behind the wall once the tip is within the lookahead.
+With `use_collision_detection: true` it at least stops instead of crossing
+the virtual wall. A path-distance carrot would be the real fix; see #24.
