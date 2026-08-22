@@ -90,9 +90,15 @@ controller_server:
       # A fixed lookahead. With velocity scaling the lookahead was
       # desired_linear_vel * lookahead_time = 0.1 * 5.0 = 0.5m, always
       # clipped to max_lookahead_dist (0.15m) - half of the A4 mat - so the
-      # cube cut every corner of the planned path. 0.1m is one lookahead of
-      # ~3 cube lengths, which still smooths the 5mm-grid path.
-      lookahead_dist: 0.1
+      # cube cut every corner of the planned path. 0.1m still cut the corner
+      # of the virtual wall on toio_a4_map_with_obstacle: the path runs
+      # 48mm past the wall before turning, but the carrot was already on the
+      # next leg, so the cube turned early and grazed the wall (edge
+      # clearance -1mm, cross-track 26mm; measured on hardware, same with
+      # and without the velocity smoother). 0.05m (~1.5 cube lengths) keeps
+      # the cube on the path: edge clearance +12mm, cross-track 11mm, same
+      # traversal time; no change on the plain and zigzag maps.
+      lookahead_dist: 0.05
       min_lookahead_dist: 0.05
       max_lookahead_dist: 0.15
       lookahead_time: 1.0
