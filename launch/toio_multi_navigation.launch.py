@@ -21,8 +21,8 @@ from launch.actions import (
     DeclareLaunchArgument,
     GroupAction,
     IncludeLaunchDescription,
-    TimerAction,
     OpaqueFunction,
+    TimerAction,
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
@@ -134,7 +134,7 @@ def generate_launch_description():
     declare_robot_start_stagger_cmd = DeclareLaunchArgument(
         'robot_start_stagger',
         default_value='15.0',
-        description='Seconds between the start of consecutive robots\' '
+        description="Seconds between the start of consecutive robots' "
                     'Nav2 stacks. Starting them all at once saturates DDS '
                     'discovery and the lifecycle managers abort their '
                     'bringup (toio_rmf_bringup#57); 0 starts all at once')

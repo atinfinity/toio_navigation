@@ -330,10 +330,9 @@ def generate_launch_description():
                 output='screen',
                 condition=IfCondition(use_velocity_smoother),
                 arguments=['--ros-args', '--log-level', log_level],
-                parameters=[# Never self-start: lifecycle_starter below
-                            # brings the nodes up once they are reachable
-                            # (toio_rmf_bringup#57)
-                            {'autostart': False},
+                # Never self-start: lifecycle_starter below brings the nodes
+                # up once they are reachable (toio_rmf_bringup#57)
+                parameters=[{'autostart': False},
                             {'bond_timeout': 10.0},
                             {'node_names': lifecycle_nodes_with_smoother}],
             ),
@@ -344,10 +343,9 @@ def generate_launch_description():
                 output='screen',
                 condition=UnlessCondition(use_velocity_smoother),
                 arguments=['--ros-args', '--log-level', log_level],
-                parameters=[# Never self-start: lifecycle_starter below
-                            # brings the nodes up once they are reachable
-                            # (toio_rmf_bringup#57)
-                            {'autostart': False},
+                # Never self-start: lifecycle_starter below brings the nodes
+                # up once they are reachable (toio_rmf_bringup#57)
+                parameters=[{'autostart': False},
                             {'bond_timeout': 10.0},
                             {'node_names': lifecycle_nodes_base}],
             ),
