@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 atinfinity
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Start the Nav2 lifecycle manager only once every managed node is reachable.
+
+nav2_lifecycle_manager with autostart:=true begins configuring its nodes the
+moment it comes up. Right after a large launch (the toio RMF stack is ~60
+DDS participants) the managed nodes' get_state / change_state services are
+often not discovered yet, the manager's first call times out and it aborts
+the whole bringup for good - "Failed to bring up all requested nodes.
+Aborting bringup." (toio_rmf_bringup#49 / #57).
+
+This node takes over the autostart: it waits until the get_state and
+change_state services of every managed node are available, lets discovery
+settle for a moment, then asks the manager for STARTUP. If that still fails
+it asks for RESET and tries STARTUP again, a few times, instead of giving up
+on the first attempt.
+"""
+
+import sys
+import time
+
+from lifecycle_msgs.srv import ChangeState, GetState
+from nav2_msgs.srv import ManageLifecycleNodes
+import rclpy
+from rclpy.node import Node
+
+
+class LifecycleStarter(Node):
+
+    def __init__(self):
+        super().__init__('lifecycle_starter')
+        self.declare_parameter('node_names', [''])
+        self.declare_parameter('manager', 'lifecycle_manager_navigation')
+        # Seconds to wait for each node's services before giving up
+        self.declare_parameter('service_timeout', 120.0)
+        # Seconds of quiet after the last service appeared, so the manager's
+        # own clients have discovered the nodes as well
+        self.declare_parameter('settle', 3.0)
+        self.declare_parameter('max_attempts', 5)
+        self.declare_parameter('retry_delay', 5.0)
+        self.node_names = [
+            n for n in self.get_parameter('node_names').value if n]
+        self.manager = self.get_parameter('manager').value
+        self.service_timeout = self.get_parameter('service_timeout').value
+        self.settle = self.get_parameter('settle').value
+        self.max_attempts = self.get_parameter('max_attempts').value
+        self.retry_delay = self.get_parameter('retry_delay').value
+
+    def wait_for_nodes(self):
+        deadline = time.monotonic() + self.service_timeout
+        for name in self.node_names:
+            for srv_type, suffix in ((GetState, 'get_state'),
+                                     (ChangeState, 'change_state')):
+                client = self.create_client(srv_type, f'{name}/{suffix}')
+                while not client.wait_for_service(timeout_sec=1.0):
+                    if time.monotonic() > deadline:
+                        self.get_logger().error(
+                            f'{name}/{suffix} did not appear within '
+                            f'{self.service_timeout:.0f} s')
+                        return False
+                self.destroy_client(client)
+        return True
+
+    def manage(self, command):
+        client = self.create_client(
+            ManageLifecycleNodes, f'{self.manager}/manage_nodes')
+        if not client.wait_for_service(timeout_sec=self.service_timeout):
+            self.get_logger().error(
+                f'{self.manager}/manage_nodes is not available')
+            return False
+        request = ManageLifecycleNodes.Request()
+        request.command = command
+        future = client.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
+        self.destroy_client(client)
+        return future.result() is not None and future.result().success
+
+    def run(self):
+        t0 = time.monotonic()
+        if not self.wait_for_nodes():
+            return False
+        self.get_logger().info(
+            f'all {len(self.node_names)} managed nodes reachable after '
+            f'{time.monotonic() - t0:.1f} s; settling {self.settle:.1f} s')
+        time.sleep(self.settle)
+        for attempt in range(1, self.max_attempts + 1):
+            self.get_logger().info(
+                f'requesting STARTUP from {self.manager} '
+                f'(attempt {attempt}/{self.max_attempts})')
+            if self.manage(ManageLifecycleNodes.Request.STARTUP):
+                self.get_logger().info('Nav2 bringup succeeded')
+                return True
+            self.get_logger().warn(
+                f'STARTUP failed; RESET and retry in {self.retry_delay:.0f} s')
+            self.manage(ManageLifecycleNodes.Request.RESET)
+            time.sleep(self.retry_delay)
+        self.get_logger().error(
+            f'Nav2 bringup failed {self.max_attempts} times, giving up')
+        return False
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = LifecycleStarter()
+    try:
+        ok = node.run()
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == '__main__':
+    main()
