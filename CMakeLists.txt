@@ -31,6 +31,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   scripts/peer_robot_costmap_publisher
+  scripts/lifecycle_starter
   DESTINATION lib/${PROJECT_NAME}
 )
 

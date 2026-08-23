@@ -330,7 +330,10 @@ def generate_launch_description():
                 output='screen',
                 condition=IfCondition(use_velocity_smoother),
                 arguments=['--ros-args', '--log-level', log_level],
-                parameters=[{'autostart': autostart},
+                # Never self-start: lifecycle_starter below brings the nodes
+                # up once they are reachable (toio_rmf_bringup#57)
+                parameters=[{'autostart': False},
+                            {'bond_timeout': 10.0},
                             {'node_names': lifecycle_nodes_with_smoother}],
             ),
             Node(
@@ -340,8 +343,37 @@ def generate_launch_description():
                 output='screen',
                 condition=UnlessCondition(use_velocity_smoother),
                 arguments=['--ros-args', '--log-level', log_level],
-                parameters=[{'autostart': autostart},
+                # Never self-start: lifecycle_starter below brings the nodes
+                # up once they are reachable (toio_rmf_bringup#57)
+                parameters=[{'autostart': False},
+                            {'bond_timeout': 10.0},
                             {'node_names': lifecycle_nodes_base}],
+            ),
+            # Brings the lifecycle nodes up in place of the manager's
+            # autostart: waits until every managed node's lifecycle services
+            # are reachable, then requests STARTUP and retries on failure.
+            # The manager alone starts configuring as soon as it is up and
+            # aborts for good when a node is not discovered yet
+            # (toio_rmf_bringup#57).
+            Node(
+                package='toio_navigation',
+                executable='lifecycle_starter',
+                name='lifecycle_starter',
+                output='screen',
+                condition=IfCondition(PythonExpression(
+                    ["'", autostart, "'.lower() in ('true', '1') and '",
+                     use_velocity_smoother, "'.lower() in ('true', '1')"])),
+                parameters=[{'node_names': lifecycle_nodes_with_smoother}],
+            ),
+            Node(
+                package='toio_navigation',
+                executable='lifecycle_starter',
+                name='lifecycle_starter',
+                output='screen',
+                condition=IfCondition(PythonExpression(
+                    ["'", autostart, "'.lower() in ('true', '1') and '",
+                     use_velocity_smoother, "'.lower() not in ('true', '1')"])),
+                parameters=[{'node_names': lifecycle_nodes_base}],
             ),
             Node(
                 package='toio_navigation',

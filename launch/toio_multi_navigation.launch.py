@@ -22,6 +22,7 @@ from launch.actions import (
     GroupAction,
     IncludeLaunchDescription,
     OpaqueFunction,
+    TimerAction,
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
@@ -46,11 +47,17 @@ def navigation_robots(context):
     robots = [r.strip() for r in
               context.launch_configurations['robots'].split(',') if r.strip()]
 
+    # Starting every robot's ~20 Nav2 nodes at once saturates DDS discovery
+    # and the lifecycle managers then time out on their own get_state /
+    # change_state calls and abort the bringup (toio_rmf_bringup#57).
+    # Start the robots one after the other instead.
+    stagger = float(context.launch_configurations['robot_start_stagger'])
+
     actions = []
-    for robot in robots:
+    for index, robot in enumerate(robots):
         peers = [r for r in robots if r != robot]
         first_peer = peers[0] if peers else ''
-        actions.append(GroupAction([
+        group = GroupAction([
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     os.path.join(launch_dir, 'navigation.launch.py')),
@@ -74,7 +81,11 @@ def navigation_robots(context):
                         context.launch_configurations['use_velocity_smoother'],
                     'rviz_config': rviz_config_file,
                 }.items()),
-        ]))
+        ])
+        if index == 0 or stagger <= 0.0:
+            actions.append(group)
+        else:
+            actions.append(TimerAction(period=index * stagger, actions=[group]))
     return actions
 
 
@@ -120,6 +131,14 @@ def generate_launch_description():
                     'or "FollowPathGraceful" (see navigation.launch.py)',
     )
 
+    declare_robot_start_stagger_cmd = DeclareLaunchArgument(
+        'robot_start_stagger',
+        default_value='15.0',
+        description="Seconds between the start of consecutive robots' "
+                    'Nav2 stacks. Starting them all at once saturates DDS '
+                    'discovery and the lifecycle managers abort their '
+                    'bringup (toio_rmf_bringup#57); 0 starts all at once')
+
     declare_use_velocity_smoother_cmd = DeclareLaunchArgument(
         'use_velocity_smoother',
         default_value='True',
@@ -137,6 +156,7 @@ def generate_launch_description():
     ld.add_action(declare_peer_footprint_size_cmd)
     ld.add_action(declare_controller_cmd)
     ld.add_action(declare_use_velocity_smoother_cmd)
+    ld.add_action(declare_robot_start_stagger_cmd)
 
     ld.add_action(OpaqueFunction(function=navigation_robots))
     return ld
